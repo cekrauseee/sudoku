@@ -1,0 +1,46 @@
+# Local development services. Credentials are for local use only; ports are
+# bound to the loopback interface.
+name: sudoku
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: sudoku
+      POSTGRES_PASSWORD: sudoku
+      POSTGRES_DB: sudoku
+    ports:
+      - "127.0.0.1:5440:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --username=sudoku --dbname=sudoku"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
+
+  storage:
+    image: rustfs/rustfs:1.0.5
+    environment:
+      RUSTFS_ACCESS_KEY: sudoku
+      RUSTFS_SECRET_KEY: sudoku-secret
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "127.0.0.1:9010:9000" # S3 API
+      - "127.0.0.1:9011:9001" # Web console
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test:
+        ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:9000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
+
+volumes:
+  postgres-data:
+  storage-data:
