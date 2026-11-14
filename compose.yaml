@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: sudoku
       POSTGRES_DB: sudoku
     ports:
-      - "127.0.0.1:5440:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
@@ -28,8 +28,8 @@ services:
       RUSTFS_SECRET_KEY: sudoku-secret
       RUSTFS_CONSOLE_ENABLE: "true"
     ports:
-      - "127.0.0.1:9010:9000" # S3 API
-      - "127.0.0.1:9011:9001" # Web console
+      - "127.0.0.1:9000:9000" # S3 API
+      - "127.0.0.1:9001:9001" # Web console
     volumes:
       - storage-data:/data
     healthcheck:
