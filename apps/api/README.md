@@ -14,7 +14,7 @@ pnpm test    # prepares an isolated test environment, then runs the suites
 Both commands prepare what they need, and repeating them keeps existing data and configuration:
 
 1. Create `apps/api/.env` from [`.env.example`](.env.example), or add the keys missing from an existing file. An empty `AUTH_SECRET` receives a generated secret.
-2. Start the services in [`compose.yaml`](../../compose.yaml) with Docker and wait until they are healthy.
+2. Check that the services' ports (5432, 9000 and 9001) are free, naming the container or process that holds one, then start the services in [`compose.yaml`](../../compose.yaml) with Docker and wait until they are healthy.
 3. Create the database when missing and apply pending migrations.
 4. Create the storage bucket when missing.
 
@@ -43,8 +43,8 @@ Sign-in is disabled until a Google OAuth client is configured; the rest of the A
 
 | Service    | Image                 | Address                                                  |
 | ---------- | --------------------- | -------------------------------------------------------- |
-| PostgreSQL | `postgres:18-alpine`  | `localhost:5440`, user `sudoku`, password `sudoku`       |
-| Storage    | `rustfs/rustfs:1.0.5` | S3 API `localhost:9010`, console `http://localhost:9011` |
+| PostgreSQL | `postgres:18-alpine`  | `localhost:5432`, user `sudoku`, password `sudoku`       |
+| Storage    | `rustfs/rustfs:1.0.5` | S3 API `localhost:9000`, console `http://localhost:9001` |
 
 [RustFS](https://rustfs.com) is an S3-compatible server; sign in to its console with `sudoku` / `sudoku-secret`. Stop the services with `pnpm services:down` from the root; `docker compose down --volumes` also deletes their data.
 

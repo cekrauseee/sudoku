@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
+import { connect } from "node:net";
 import { fileURLToPath } from "node:url";
 import { parseEnv, promisify } from "node:util";
 
@@ -125,6 +126,8 @@ export async function startServices(): Promise<void> {
     });
   }
 
+  await assertPortsAvailable();
+
   try {
     await run(
       "docker",
@@ -145,11 +148,84 @@ export async function startServices(): Promise<void> {
     throw new SetupError(
       "The local services (postgres, storage) did not start.",
       {
-        hint: "Check that ports 5440, 9010 and 9011 are free, then run `docker compose logs`.",
+        hint: "Run `docker compose logs` for details.",
         details: commandOutput(error),
       },
     );
   }
+}
+
+/**
+ * Fails when a port published by `compose.yaml` is already taken, naming the Docker
+ * container that holds it when there is one. Ports held by this project's running
+ * services are expected.
+ */
+async function assertPortsAvailable(): Promise<void> {
+  const compose = ["compose", "--file", composeFile];
+  const [config, running] = await Promise.all([
+    run("docker", [...compose, "config", "--format", "json"]),
+    run("docker", [...compose, "ps", "--format", "json"]),
+  ]);
+
+  const { services } = JSON.parse(config.stdout) as {
+    services: Record<string, { ports?: { published?: string }[] }>;
+  };
+  const ownPorts = new Set(
+    running.stdout
+      .split("\n")
+      .filter(Boolean)
+      .flatMap(
+        (line) =>
+          (JSON.parse(line) as { Publishers?: { PublishedPort: number }[] })
+            .Publishers ?? [],
+      )
+      .map(({ PublishedPort }) => PublishedPort),
+  );
+
+  const required = Object.entries(services).flatMap(([service, { ports }]) =>
+    (ports ?? []).flatMap(({ published }) =>
+      published ? [{ service, port: Number(published) }] : [],
+    ),
+  );
+  const conflicts = [];
+  for (const { service, port } of required) {
+    if (ownPorts.has(port) || !(await isPortInUse(port))) continue;
+    const { stdout } = await run("docker", [
+      "ps",
+      "--filter",
+      `publish=${port}`,
+      "--format",
+      "{{.Names}}",
+    ]);
+    const container = stdout.trim().split("\n")[0];
+    conflicts.push(
+      `port ${port} (${service}) is used by ${container ? `container ${container}` : "another process"}`,
+    );
+  }
+
+  if (conflicts.length > 0) {
+    throw new SetupError(`Required ports are taken: ${conflicts.join("; ")}.`, {
+      hint: "Stop what is using them (for a container, `docker stop <name>`) and run the command again.",
+    });
+  }
+}
+
+function isPortInUse(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = connect({ host: "127.0.0.1", port });
+    socket.setTimeout(1000);
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once("error", () => {
+      resolve(false);
+    });
+  });
 }
 
 /** Creates the database named in `url` when it does not exist. Returns whether it was created. */
