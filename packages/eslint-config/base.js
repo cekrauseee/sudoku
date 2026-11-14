@@ -1,40 +1,49 @@
-import babelParser from "@babel/eslint-parser";
 import js from "@eslint/js";
-import eslintConfigPrettier from "eslint-config-prettier";
-import turboPlugin from "eslint-plugin-turbo";
-import onlyWarn from "eslint-plugin-only-warn";
+import { defineConfig, globalIgnores } from "eslint/config";
+import prettier from "eslint-config-prettier/flat";
+import turbo from "eslint-plugin-turbo";
+import globals from "globals";
+import tseslint from "typescript-eslint";
 
 /**
- * A shared ESLint configuration for the repository.
+ * Shared ESLint configuration with type-aware TypeScript rules.
  *
- * @type {import("eslint").Linter.Config[]}
- * */
-export const config = [
-  js.configs.recommended,
-  eslintConfigPrettier,
+ * Consumers must set `parserOptions.tsconfigRootDir` to their package directory.
+ */
+export const config = defineConfig(
+  globalIgnores(["dist/", "coverage/"]),
   {
+    linterOptions: {
+      reportUnusedDisableDirectives: "error",
+      reportUnusedInlineConfigs: "error",
+    },
     languageOptions: {
-      parser: babelParser,
+      globals: globals.node,
       parserOptions: {
-        requireConfigFile: false,
-        babelOptions: {
-          presets: ["@babel/preset-typescript"],
-        },
+        projectService: true,
       },
     },
-    plugins: {
-      turbo: turboPlugin,
-    },
+  },
+  js.configs.recommended,
+  tseslint.configs.strictTypeChecked,
+  tseslint.configs.stylisticTypeChecked,
+  {
     rules: {
-      "turbo/no-undeclared-env-vars": "warn",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/restrict-template-expressions": [
+        "error",
+        { allowNumber: true },
+      ],
     },
   },
   {
-    plugins: {
-      onlyWarn,
-    },
+    files: ["**/*.js"],
+    extends: [tseslint.configs.disableTypeChecked],
   },
-  {
-    ignores: ["dist/**"],
-  },
-];
+  turbo.configs["flat/recommended"],
+  prettier,
+);

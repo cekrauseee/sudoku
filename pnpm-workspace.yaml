@@ -1,3 +1,16 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+catalog:
+  "@types/node": ^26.6.6
+  # TypeScript 7 (native compiler) provides `tsc` for type checking. Tools that
+  # still need the classic compiler API, such as typescript-eslint, resolve
+  # `typescript` to the official TypeScript 6 compatibility package.
+  "@typescript/native": npm:typescript@^7.0.2
+  eslint: ^10.14.0
+  typescript: npm:@typescript/typescript6@^6.0.2
+  vitest: ^5.1.0
+
+allowBuilds:
+  esbuild: true
